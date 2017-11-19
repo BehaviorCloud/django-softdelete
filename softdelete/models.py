@@ -162,7 +162,7 @@ class SoftDeleteObject(models.Model):
 
     deleted = property(get_deleted, set_deleted)
 
-    def _do_delete(self, changeset, related):
+    def _do_delete(self, related, **kwargs):
         rel = related.get_accessor_name()
 
         # Sometimes there is nothing to delete
@@ -171,18 +171,21 @@ class SoftDeleteObject(models.Model):
 
         try:
             if related.one_to_one:
-                getattr(self, rel).delete(changeset=changeset)
+                getattr(self, rel).delete(**kwargs)
             else:
-                getattr(self, rel).all().delete(changeset=changeset)
+                getattr(self, rel).all().delete(**kwargs)
         except:
             try:
-                getattr(self, rel).all().delete()
+                getattr(self, rel).all().delete(**kwargs)
             except:
                 try:
-                    getattr(self, rel).__class__.objects.all().delete(
-                        changeset=changeset)
+                    getattr(self, rel).__class__.objects.all().delete(**kwargs)
                 except:
-                    getattr(self, rel).__class__.objects.all().delete()
+                    getattr(self, rel).__class__.objects.all().delete(**kwargs)
+
+    def _soft_delete(self, **kwargs):
+        self.deleted_at = timezone.now()
+        self.save()
 
     def delete(self, *args, **kwargs):
         if self.deleted_at:
@@ -221,15 +224,14 @@ class SoftDeleteObject(models.Model):
                 changeset=cs,
                 content_type=ContentType.objects.get_for_model(self),
                 object_id=self.pk)
-            self.deleted_at = timezone.now()
-            self.save()
+            self._soft_delete(**kwargs)
             all_related = [
                 f for f in self._meta.get_fields()
                 if (f.one_to_many or f.one_to_one)
                 and f.auto_created and not f.concrete
             ]
             for x in all_related:
-                self._do_delete(cs, x)
+                self._do_delete(x, **dict(kwargs, changeset=cs))
             logging.debug("FINISHED SOFT DELETING RELATED %s", self)
             models.signals.post_delete.send(sender=self.__class__,
                                             instance=self,
