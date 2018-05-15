@@ -176,12 +176,12 @@ class SoftDeleteObject(models.Model):
                 getattr(self, rel).all().delete(**kwargs)
         except:
             try:
-                getattr(self, rel).all().delete(**kwargs)
+                getattr(self, rel).all().delete()
             except:
                 try:
                     getattr(self, rel).__class__.objects.all().delete(**kwargs)
                 except:
-                    getattr(self, rel).__class__.objects.all().delete(**kwargs)
+                    getattr(self, rel).__class__.objects.all().delete()
 
     def _soft_delete(self, **kwargs):
         self.deleted_at = timezone.now()
