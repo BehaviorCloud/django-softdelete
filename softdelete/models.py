@@ -225,14 +225,6 @@ class SoftDeleteObject(models.Model):
                 content_type=ContentType.objects.get_for_model(self),
                 object_id=self.pk)
             self._soft_delete(**kwargs)
-            all_related = [
-                f for f in self._meta.get_fields()
-                if (f.one_to_many or f.one_to_one)
-                and f.auto_created and not f.concrete
-            ]
-            for x in all_related:
-                self._do_delete(x, **dict(kwargs, changeset=cs))
-            logging.debug("FINISHED SOFT DELETING RELATED %s", self)
             models.signals.post_delete.send(sender=self.__class__,
                                             instance=self,
                                             using=using)
